@@ -1,4 +1,4 @@
-import stlit as st
+import streamlit as st
 from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -44,7 +44,8 @@ for hole in range(1, 19):
         st.markdown("### 🔵 Back 9")
 
     with st.expander(f"Hole {hole}"):
-        score = st.selectbox(f"Score", options=list(range(1, 11)), index=2, key=f"score_{hole}") if compact_input             else st.number_input(f"Score", min_value=1, max_value=10, value=3, key=f"score_{hole}")
+        score = st.selectbox(f"Score", options=list(range(1, 11)), index=2, key=f"score_{hole}") if compact_input \
+            else st.number_input(f"Score", min_value=1, max_value=10, value=3, key=f"score_{hole}")
 
         pitched_option = st.selectbox(
             "🎯 Tee Shot Result",
@@ -184,32 +185,5 @@ ax3.set_xlabel("Hole", fontsize=10)
 ax3.set_ylabel("Putts", fontsize=10)
 plt.tight_layout()
 st.pyplot(fig3)
-
-# Save/load rounds in-app
-st.markdown("---")
-st.markdown("<h2 style='color:brown;'>💾 Save & Load Rounds</h2>", unsafe_allow_html=True)
-
-if "saved_rounds" not in st.session_state:
-    st.session_state.saved_rounds = {}
-
-save_name = st.text_input("Save this round as:", value="Round 1")
-if st.button("💾 Save Round"):
-    st.session_state.saved_rounds[save_name] = {
-        "data": df.copy(),
-        "notes": round_notes
-    }
-    st.success(f"Saved as '{save_name}'")
-
-if st.session_state.saved_rounds:
-    load_name = st.selectbox("📂 Load a saved round", list(st.session_state.saved_rounds.keys()))
-    if st.button("📋 View Selected Round"):
-        loaded = st.session_state.saved_rounds[load_name]
-        st.markdown(f"### 📄 Viewing: {load_name}")
-        st.dataframe(loaded["data"].set_index("Hole"))
-        if loaded["notes"]:
-            st.markdown("#### 🗒️ Round Notes")
-            st.markdown(f"> {loaded['notes']}")
-ream
-
 
 
