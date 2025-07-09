@@ -3,8 +3,6 @@ from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import base64
-from io import BytesIO
 
 # Page configuration
 st.set_page_config(page_title="Pitch & Putt Score Tracker", layout="centered")
@@ -162,41 +160,30 @@ ax3.set_ylabel("Putts", fontsize=10)
 plt.tight_layout()
 st.pyplot(fig3)
 
-# Export to Excel
+# Save/load rounds in-app
 st.markdown("---")
-st.markdown("<h2 style='color:brown;'>📤 Export & Save</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='color:brown;'>💾 Save & Load Rounds</h2>", unsafe_allow_html=True)
 
-# Convert boolean columns to 'Yes'/'No'
-bool_columns = ["Green Pitched", "Chip-in", "Long Putt"]
-for col in bool_columns:
-    df[col] = df[col].map({True: "Yes", False: "No"})
-
-output = BytesIO()
-with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-    df.to_excel(writer, index=False, sheet_name='Round Data')
-    worksheet = writer.sheets['Round Data']
-    for i, col in enumerate(df.columns):
-        column_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
-        worksheet.set_column(i, i, column_len)
-    if round_notes.strip():
-        pd.DataFrame({"Round Notes": [round_notes]}).to_excel(writer, index=False, sheet_name='Notes')
-
-processed_data = output.getvalue()
-b64 = base64.b64encode(processed_data).decode()
-href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{player_name}_round.xlsx">📥 Download Round as Excel</a>'
-st.markdown(href, unsafe_allow_html=True)
-
-# Save/load rounds
 if "saved_rounds" not in st.session_state:
     st.session_state.saved_rounds = {}
 
 save_name = st.text_input("Save this round as:", value="Round 1")
 if st.button("💾 Save Round"):
-    st.session_state.saved_rounds[save_name] = df.copy()
+    st.session_state.saved_rounds[save_name] = {
+        "data": df.copy(),
+        "notes": round_notes
+    }
     st.success(f"Saved as '{save_name}'")
 
 if st.session_state.saved_rounds:
     load_name = st.selectbox("📂 Load a saved round", list(st.session_state.saved_rounds.keys()))
+    if st.button("📋 View Selected Round"):
+        loaded = st.session_state.saved_rounds[load_name]
+        st.markdown(f"### 📄 Viewing: {load_name}")
+        st.dataframe(loaded["data"].set_index("Hole"))
+        if loaded["notes"]:
+            st.markdown("#### 🗒️ Round Notes")
+            st.markdown(f"> {loaded['notes']}")
 
 
 
