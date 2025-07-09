@@ -46,35 +46,34 @@ for hole in range(1, 19):
         st.markdown("### 🔵 Back 9")
 
     with st.expander(f"Hole {hole}"):
-        with st.container():
-            score = st.selectbox(f"Score", options=list(range(1, 11)), index=2, key=f"score_{hole}") if compact_input \
-                else st.number_input(f"Score", min_value=1, max_value=10, value=3, key=f"score_{hole}")
+        score = st.selectbox(f"Score", options=list(range(1, 11)), index=2, key=f"score_{hole}") if compact_input \
+            else st.number_input(f"Score", min_value=1, max_value=10, value=3, key=f"score_{hole}")
 
-            pitched_option = st.selectbox(
-                "🎯 Tee Shot Result",
-                options=["Missed Green", "Hit Green"],
-                index=1 if compact_input else 0,
-                key=f"pitched_option_{hole}"
-            )
-            pitched = pitched_option == "Hit Green"
+        pitched_option = st.selectbox(
+            "🎯 Tee Shot Result",
+            options=["Missed Green", "Hit Green"],
+            index=1 if compact_input else 0,
+            key=f"pitched_option_{hole}"
+        )
+        pitched = pitched_option == "Hit Green"
 
-            chip_in = long_putt = False
-            if not pitched and score == 2:
-                chip_in = st.checkbox("🏌️ Chip-in?", key=f"chipin_{hole}")
-                long_putt = st.checkbox("🎯 Long Putt?", key=f"longputt_{hole}")
+        chip_in = long_putt = False
+        if not pitched and score == 2:
+            chip_in = st.checkbox("🏌️ Chip-in?", key=f"chipin_{hole}")
+            long_putt = st.checkbox("🎯 Long Putt?", key=f"longputt_{hole}")
 
-            notes = st.text_area("📝 Notes (optional)", key=f"notes_{hole}", placeholder="E.g., windy, missed short putt...") if enable_notes else ""
-            putts = 1 if pitched and score == 2 else 2 if pitched and score == 3 else None
+        notes = st.text_area("📝 Notes (optional)", key=f"notes_{hole}", placeholder="E.g., windy, missed short putt...") if enable_notes else ""
+        putts = 1 if pitched and score == 2 else 2 if pitched and score == 3 else None
 
-            hole_data.append({
-                "Hole": hole,
-                "Score": score,
-                "Green Pitched": pitched,
-                "Chip-in": chip_in,
-                "Long Putt": long_putt,
-                "Putts": putts,
-                "Notes": notes
-            })
+        hole_data.append({
+            "Hole": hole,
+            "Score": score,
+            "Green Pitched": pitched,
+            "Chip-in": chip_in,
+            "Long Putt": long_putt,
+            "Putts": putts,
+            "Notes": notes
+        })
 
 # Convert to DataFrame
 df = pd.DataFrame(hole_data)
@@ -108,7 +107,6 @@ st.markdown(f"- ⛳ **Estimated Total Putts:** {int(total_putts)} (Avg: {average
 st.markdown(f"- 🟢 **Birdie Conversion on GIR:** {birdie_conversion:.1f}%")
 st.markdown(f"- 🔁 **Missed Green Birdie Recovery:** {missed_green_recovery:.1f}%")
 
-# Show round notes
 if round_notes.strip():
     st.markdown("#### 🗒️ Round Notes")
     st.markdown(f"> {round_notes}")
@@ -167,11 +165,22 @@ st.pyplot(fig3)
 # Export to Excel
 st.markdown("---")
 st.markdown("<h2 style='color:brown;'>📤 Export & Save</h2>", unsafe_allow_html=True)
+
+# Convert boolean columns to 'Yes'/'No'
+bool_columns = ["Green Pitched", "Chip-in", "Long Putt"]
+for col in bool_columns:
+    df[col] = df[col].map({True: "Yes", False: "No"})
+
 output = BytesIO()
-with pd.ExcelWriter(output, engine='openpyxl') as writer:
+with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
     df.to_excel(writer, index=False, sheet_name='Round Data')
+    worksheet = writer.sheets['Round Data']
+    for i, col in enumerate(df.columns):
+        column_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
+        worksheet.set_column(i, i, column_len)
     if round_notes.strip():
         pd.DataFrame({"Round Notes": [round_notes]}).to_excel(writer, index=False, sheet_name='Notes')
+
 processed_data = output.getvalue()
 b64 = base64.b64encode(processed_data).decode()
 href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{player_name}_round.xlsx">📥 Download Round as Excel</a>'
@@ -188,6 +197,7 @@ if st.button("💾 Save Round"):
 
 if st.session_state.saved_rounds:
     load_name = st.selectbox("📂 Load a saved round", list(st.session_state.saved_rounds.keys()))
+
 
 
 
