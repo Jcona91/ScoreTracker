@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import base64
+from io import BytesIO
 
 # Page configuration
 st.set_page_config(page_title="Pitch & Putt Score Tracker", layout="centered")
@@ -151,12 +152,15 @@ ax3.set_ylabel("Putts", fontsize=10)
 plt.tight_layout()
 st.pyplot(fig3)
 
-# Export to CSV
+# Export to Excel
 st.markdown("---")
 st.markdown("<h2 style='color:brown;'>📤 Export & Save</h2>", unsafe_allow_html=True)
-csv = df.to_csv(index=False)
-b64 = base64.b64encode(csv.encode()).decode()
-href = f'<a href="data:file/csv;base64,{b64}" download="{player_name}_round.csv">📥 Download Round as CSV</a>'
+output = BytesIO()
+with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+    df.to_excel(writer, index=False, sheet_name='Round Data')
+processed_data = output.getvalue()
+b64 = base64.b64encode(processed_data).decode()
+href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{player_name}_round.xlsx">📥 Download Round as Excel</a>'
 st.markdown(href, unsafe_allow_html=True)
 
 # Save/load rounds
@@ -170,4 +174,5 @@ if st.button("💾 Save Round"):
 
 if st.session_state.saved_rounds:
     load_name = st.selectbox("📂 Load a saved round", list(st.session_state.saved_rounds.keys()))
+
 
