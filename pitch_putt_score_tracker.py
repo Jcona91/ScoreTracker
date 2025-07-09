@@ -3,26 +3,26 @@ from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import io
 import base64
 
 # Page configuration
 st.set_page_config(page_title="Pitch & Putt Score Tracker", layout="centered")
 
-# Dark mode toggle
+# Sidebar toggles
 dark_mode = st.sidebar.checkbox("🌙 Dark Mode")
+compact_input = st.sidebar.checkbox("📱 Compact Input Mode", value=True)
+enable_notes = st.sidebar.checkbox("📝 Enable Hole Notes", value=False)
+
+# Dark mode styling
 if dark_mode:
-    st.markdown(
-        """
+    st.markdown("""
         <style>
         body { background-color: #1e1e1e; color: white; }
         .stApp { background-color: #1e1e1e; }
         </style>
-        """,
-        unsafe_allow_html=True
-    )
+    """, unsafe_allow_html=True)
 
-# Display logo if available
+# Logo or title
 try:
     logo = Image.open("pitch_putt_logo.png")
     st.image(logo, width=200)
@@ -32,43 +32,38 @@ except FileNotFoundError:
 st.markdown("---")
 st.markdown("<h2 style='color:green;'>🏌️ Enter Hole Scores</h2>", unsafe_allow_html=True)
 
-# Player profile
+# Player name
 player_name = st.text_input("Player Name", value="Player 1")
 
-# Initialize data structure
+# Input form
 hole_data = []
-
-# Input for 18 holes
 for hole in range(1, 19):
+    if hole == 1:
+        st.markdown("### 🟢 Front 9")
+    elif hole == 10:
+        st.markdown("### 🔵 Back 9")
+
     with st.expander(f"Hole {hole}"):
-        col1, col2, col3 = st.columns([1, 1, 2])
-        with col1:
-            score = st.number_input(f"Score", min_value=1, max_value=10, value=3, key=f"score_{hole}")
-        with col2:
-            pitched = st.checkbox("Green Pitched?", key=f"pitched_{hole}")
-        with col3:
-            chip_in = False
-            long_putt = False
+        with st.container():
+            score = st.selectbox(f"Score", options=list(range(1, 11)), index=2, key=f"score_{hole}") if compact_input \
+                else st.number_input(f"Score", min_value=1, max_value=10, value=3, key=f"score_{hole}")
+            pitched = st.checkbox("✅ Green Pitched?", key=f"pitched_{hole}")
+            chip_in = long_putt = False
             if not pitched and score == 2:
                 chip_in = st.checkbox("🏌️ Chip-in?", key=f"chipin_{hole}")
                 long_putt = st.checkbox("🎯 Long Putt?", key=f"longputt_{hole}")
+            notes = st.text_area("📝 Notes (optional)", key=f"notes_{hole}", placeholder="E.g., windy, missed short putt...") if enable_notes else ""
+            putts = 1 if pitched and score == 2 else 2 if pitched and score == 3 else None
 
-        # Determine putts
-        putts = None
-        if pitched:
-            if score == 2:
-                putts = 1
-            elif score == 3:
-                putts = 2
-
-        hole_data.append({
-            "Hole": hole,
-            "Score": score,
-            "Green Pitched": pitched,
-            "Chip-in": chip_in,
-            "Long Putt": long_putt,
-            "Putts": putts
-        })
+            hole_data.append({
+                "Hole": hole,
+                "Score": score,
+                "Green Pitched": pitched,
+                "Chip-in": chip_in,
+                "Long Putt": long_putt,
+                "Putts": putts,
+                "Notes": notes
+            })
 
 # Convert to DataFrame
 df = pd.DataFrame(hole_data)
@@ -88,7 +83,7 @@ birdie_conversion = ((df["Score"] == 2) & (df["Green Pitched"])).sum() / greens_
 missed_green_birdies = ((df["Score"] == 2) & (~df["Green Pitched"])).sum()
 missed_green_recovery = missed_green_birdies / (18 - greens_pitched) * 100 if (18 - greens_pitched) else 0
 
-# Display analysis
+# Round analysis
 st.markdown("---")
 st.markdown("<h2 style='color:blue;'>📊 Round Analysis</h2>", unsafe_allow_html=True)
 st.markdown(f"- 🟢 **Total Score:** {total_score}")
@@ -102,44 +97,69 @@ st.markdown(f"- ⛳ **Estimated Total Putts:** {int(total_putts)} (Avg: {average
 st.markdown(f"- 🟢 **Birdie Conversion on GIR:** {birdie_conversion:.1f}%")
 st.markdown(f"- 🔁 **Missed Green Birdie Recovery:** {missed_green_recovery:.1f}%")
 
-# Display hole-by-hole summary
+# Hole-by-hole summary
 st.markdown("---")
 st.markdown("<h2 style='color:purple;'>📋 Hole-by-Hole Summary</h2>", unsafe_allow_html=True)
-st.dataframe(df.set_index("Hole"))
+df_display = df.rename(columns={
+    "Green Pitched": "GIR",
+    "Chip-in": "Chip",
+    "Long Putt": "LongP",
+    "Putts": "Putt"
+})
+totals = {
+    "Hole": "Total",
+    "Score": df["Score"].sum(),
+    "GIR": df["Green Pitched"].sum(),
+    "Chip": df["Chip-in"].sum(),
+    "LongP": df["Long Putt"].sum(),
+    "Putt": df["Putts"].dropna().sum(),
+    "Notes": "" if enable_notes else None
+}
+df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
+if not enable_notes:
+    df_display = df_display.drop(columns=["Notes"])
+st.table(df_display.set_index("Hole"))
 
 # Charts
 st.markdown("---")
 st.markdown("<h2 style='color:orange;'>📈 Visual Summary</h2>", unsafe_allow_html=True)
+sns.set_theme(style="whitegrid")
 
-# Bar chart of scores
-fig1, ax1 = plt.subplots()
+# Score per hole
+fig1, ax1 = plt.subplots(figsize=(8, 4))
 sns.barplot(x="Hole", y="Score", data=df, ax=ax1, palette="viridis")
-ax1.set_title("Score per Hole")
+ax1.set_title("Score per Hole", fontsize=12)
+ax1.set_xlabel("Hole", fontsize=10)
+ax1.set_ylabel("Score", fontsize=10)
+plt.tight_layout()
 st.pyplot(fig1)
 
-# Pie chart of score types
+# Score distribution
 score_counts = df["Score"].apply(lambda x: "Birdie" if x == 2 else "Par" if x == 3 else "Bogey+").value_counts()
-fig2, ax2 = plt.subplots()
+fig2, ax2 = plt.subplots(figsize=(5, 5))
 ax2.pie(score_counts, labels=score_counts.index, autopct='%1.1f%%', startangle=90)
-ax2.set_title("Score Distribution")
+ax2.set_title("Score Distribution", fontsize=12)
+plt.tight_layout()
 st.pyplot(fig2)
 
-# Line chart of putts
-fig3, ax3 = plt.subplots()
+# Putts per hole
+fig3, ax3 = plt.subplots(figsize=(8, 4))
 sns.lineplot(x="Hole", y="Putts", data=df, marker="o", ax=ax3)
-ax3.set_title("Putts per Hole")
+ax3.set_title("Putts per Hole", fontsize=12)
+ax3.set_xlabel("Hole", fontsize=10)
+ax3.set_ylabel("Putts", fontsize=10)
+plt.tight_layout()
 st.pyplot(fig3)
 
 # Export to CSV
 st.markdown("---")
 st.markdown("<h2 style='color:brown;'>📤 Export & Save</h2>", unsafe_allow_html=True)
-
 csv = df.to_csv(index=False)
 b64 = base64.b64encode(csv.encode()).decode()
 href = f'<a href="data:file/csv;base64,{b64}" download="{player_name}_round.csv">📥 Download Round as CSV</a>'
 st.markdown(href, unsafe_allow_html=True)
 
-# Save/load rounds (basic session state)
+# Save/load rounds
 if "saved_rounds" not in st.session_state:
     st.session_state.saved_rounds = {}
 
@@ -150,6 +170,4 @@ if st.button("💾 Save Round"):
 
 if st.session_state.saved_rounds:
     load_name = st.selectbox("📂 Load a saved round", list(st.session_state.saved_rounds.keys()))
-    if st.button("🔄 Load Round"):
-        df = st.session_state.saved_rounds[load_name]
-        st.dataframe(df.set_index("Hole"))
+
