@@ -33,8 +33,9 @@ except FileNotFoundError:
 st.markdown("---")
 st.markdown("<h2 style='color:green;'>🏌️ Enter Hole Scores</h2>", unsafe_allow_html=True)
 
-# Player name
+# Player name and round notes
 player_name = st.text_input("Player Name", value="Player 1")
+round_notes = st.text_area("📝 Round Notes (optional)", placeholder="E.g., windy day, wet greens, played with John...")
 
 # Input form
 hole_data = []
@@ -48,11 +49,20 @@ for hole in range(1, 19):
         with st.container():
             score = st.selectbox(f"Score", options=list(range(1, 11)), index=2, key=f"score_{hole}") if compact_input \
                 else st.number_input(f"Score", min_value=1, max_value=10, value=3, key=f"score_{hole}")
-            pitched = st.checkbox("✅ Green Pitched?", key=f"pitched_{hole}")
+
+            pitched_option = st.selectbox(
+                "🎯 Tee Shot Result",
+                options=["Missed Green", "Hit Green"],
+                index=1 if compact_input else 0,
+                key=f"pitched_option_{hole}"
+            )
+            pitched = pitched_option == "Hit Green"
+
             chip_in = long_putt = False
             if not pitched and score == 2:
                 chip_in = st.checkbox("🏌️ Chip-in?", key=f"chipin_{hole}")
                 long_putt = st.checkbox("🎯 Long Putt?", key=f"longputt_{hole}")
+
             notes = st.text_area("📝 Notes (optional)", key=f"notes_{hole}", placeholder="E.g., windy, missed short putt...") if enable_notes else ""
             putts = 1 if pitched and score == 2 else 2 if pitched and score == 3 else None
 
@@ -91,12 +101,17 @@ st.markdown(f"- 🟢 **Total Score:** {total_score}")
 st.markdown(f"- 🟢 **Birdies:** {birdies}")
 st.markdown(f"- ⚪ **Pars:** {pars}")
 st.markdown(f"- 🔴 **Bogeys or worse:** {bogeys}")
-st.markdown(f"- ✅ **Greens Pitched:** {greens_pitched} ({gir_percentage:.1f}%)")
+st.markdown(f"- ✅ **Greens Hit:** {greens_pitched} ({gir_percentage:.1f}%)")
 st.markdown(f"- 🏌️ **Chip-ins:** {chip_ins}")
 st.markdown(f"- 🎯 **Long Putts:** {long_putts}")
 st.markdown(f"- ⛳ **Estimated Total Putts:** {int(total_putts)} (Avg: {average_putts:.2f})")
 st.markdown(f"- 🟢 **Birdie Conversion on GIR:** {birdie_conversion:.1f}%")
 st.markdown(f"- 🔁 **Missed Green Birdie Recovery:** {missed_green_recovery:.1f}%")
+
+# Show round notes
+if round_notes.strip():
+    st.markdown("#### 🗒️ Round Notes")
+    st.markdown(f"> {round_notes}")
 
 # Hole-by-hole summary
 st.markdown("---")
@@ -126,7 +141,6 @@ st.markdown("---")
 st.markdown("<h2 style='color:orange;'>📈 Visual Summary</h2>", unsafe_allow_html=True)
 sns.set_theme(style="whitegrid")
 
-# Score per hole
 fig1, ax1 = plt.subplots(figsize=(8, 4))
 sns.barplot(x="Hole", y="Score", data=df, ax=ax1, palette="viridis")
 ax1.set_title("Score per Hole", fontsize=12)
@@ -135,7 +149,6 @@ ax1.set_ylabel("Score", fontsize=10)
 plt.tight_layout()
 st.pyplot(fig1)
 
-# Score distribution
 score_counts = df["Score"].apply(lambda x: "Birdie" if x == 2 else "Par" if x == 3 else "Bogey+").value_counts()
 fig2, ax2 = plt.subplots(figsize=(5, 5))
 ax2.pie(score_counts, labels=score_counts.index, autopct='%1.1f%%', startangle=90)
@@ -143,7 +156,6 @@ ax2.set_title("Score Distribution", fontsize=12)
 plt.tight_layout()
 st.pyplot(fig2)
 
-# Putts per hole
 fig3, ax3 = plt.subplots(figsize=(8, 4))
 sns.lineplot(x="Hole", y="Putts", data=df, marker="o", ax=ax3)
 ax3.set_title("Putts per Hole", fontsize=12)
@@ -156,8 +168,10 @@ st.pyplot(fig3)
 st.markdown("---")
 st.markdown("<h2 style='color:brown;'>📤 Export & Save</h2>", unsafe_allow_html=True)
 output = BytesIO()
-with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+with pd.ExcelWriter(output, engine='openpyxl') as writer:
     df.to_excel(writer, index=False, sheet_name='Round Data')
+    if round_notes.strip():
+        pd.DataFrame({"Round Notes": [round_notes]}).to_excel(writer, index=False, sheet_name='Notes')
 processed_data = output.getvalue()
 b64 = base64.b64encode(processed_data).decode()
 href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{player_name}_round.xlsx">📥 Download Round as Excel</a>'
@@ -174,5 +188,6 @@ if st.button("💾 Save Round"):
 
 if st.session_state.saved_rounds:
     load_name = st.selectbox("📂 Load a saved round", list(st.session_state.saved_rounds.keys()))
+
 
 
