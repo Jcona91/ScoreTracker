@@ -81,4 +81,3 @@ st.markdown("---")
 st.markdown("<h2 style='color:purple;'>📋 Hole-by-Hole Summary</h2>", unsafe_allow_html=True)
 st.dataframe(df.set_index("Hole"))
 
-
