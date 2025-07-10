@@ -1,5 +1,3 @@
-# pitch_putt_tracker.py
-
 import streamlit as st
 from PIL import Image
 import pandas as pd
@@ -35,11 +33,9 @@ except FileNotFoundError:
 st.markdown("---")
 st.markdown("<h2 style='color:green;'>🏌️ Enter Hole Scores</h2>", unsafe_allow_html=True)
 
-# Player name and round notes
 player_name = st.text_input("Player Name", value="Player 1")
 round_notes = st.text_area("📝 Round Notes (optional)", placeholder="E.g., windy day, wet greens, played with John...")
 
-# Input form
 hole_data = []
 for hole in range(1, 19):
     if hole == 1:
@@ -48,8 +44,7 @@ for hole in range(1, 19):
         st.markdown("### 🔵 Back 9")
 
     with st.expander(f"Hole {hole}"):
-        score = st.selectbox(f"Score", options=list(range(1, 11)), index=2, key=f"score_{hole}") if compact_input \
-            else st.number_input(f"Score", min_value=1, max_value=10, value=3, key=f"score_{hole}")
+        score = st.selectbox(f"Score", options=list(range(1, 11)), index=2, key=f"score_{hole}") if compact_input             else st.number_input(f"Score", min_value=1, max_value=10, value=3, key=f"score_{hole}")
 
         pitched_option = st.selectbox(
             "🎯 Tee Shot Result",
@@ -90,7 +85,6 @@ for hole in range(1, 19):
             "Off Green Putt": off_green_putt
         })
 
-# Convert to DataFrame
 df = pd.DataFrame(hole_data)
 
 # Analysis
@@ -181,6 +175,7 @@ st.markdown("---")
 st.markdown("<h2 style='color:orange;'>📈 Visual Summary</h2>", unsafe_allow_html=True)
 sns.set_theme(style="whitegrid")
 
+# Bar chart: Score per Hole
 fig1, ax1 = plt.subplots(figsize=(8, 4))
 sns.barplot(x="Hole", y="Score", data=df, ax=ax1, palette="viridis")
 ax1.set_title("Score per Hole", fontsize=12)
@@ -189,6 +184,7 @@ ax1.set_ylabel("Score", fontsize=10)
 plt.tight_layout()
 st.pyplot(fig1)
 
+# Pie chart: Score Distribution
 score_counts = df["Score"].apply(lambda x: "Birdie" if x == 2 else "Par" if x == 3 else "Bogey+").value_counts()
 fig2, ax2 = plt.subplots(figsize=(5, 5))
 ax2.pie(score_counts, labels=score_counts.index, autopct='%1.1f%%', startangle=90)
@@ -196,6 +192,7 @@ ax2.set_title("Score Distribution", fontsize=12)
 plt.tight_layout()
 st.pyplot(fig2)
 
+# Line chart: Putts per Hole
 fig3, ax3 = plt.subplots(figsize=(8, 4))
 sns.lineplot(x="Hole", y="Putts", data=df, marker="o", ax=ax3)
 ax3.set_title("Putts per Hole", fontsize=12)
@@ -203,5 +200,3 @@ ax3.set_xlabel("Hole", fontsize=10)
 ax3.set_ylabel("Putts", fontsize=10)
 plt.tight_layout()
 st.pyplot(fig3)
-
-
