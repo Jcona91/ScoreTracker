@@ -1,8 +1,12 @@
+# pitch_putt_tracker.py
+
 import streamlit as st
 from PIL import Image
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
+from datetime import datetime
 
 # Page configuration
 st.set_page_config(page_title="Pitch & Putt Score Tracker", layout="centered")
@@ -103,10 +107,24 @@ gir_percentage = greens_pitched / 18 * 100
 birdie_conversion = ((df["Score"] == 2) & (df["Green Pitched"])).sum() / greens_pitched * 100 if greens_pitched else 0
 missed_green_birdies = ((df["Score"] == 2) & (~df["Green Pitched"])).sum()
 missed_green_recovery = missed_green_birdies / (18 - greens_pitched) * 100 if (18 - greens_pitched) else 0
-
-# Birdie putt distance stats
 avg_birdie_putt_made = df["Birdie Putt Made Dist"].dropna().mean()
 avg_birdie_putt_missed = df["Birdie Putt Missed Dist"].dropna().mean()
+
+# Save round
+if st.button("💾 Save Round"):
+    round_summary = {
+        "Player": player_name,
+        "Date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "Score": total_score,
+        "Birdies": birdies,
+        "GIR": greens_pitched,
+        "Putts": total_putts,
+        "Birdie %": birdies / 18 * 100
+    }
+    file_exists = os.path.exists("rounds_data.csv")
+    df_summary = pd.DataFrame([round_summary])
+    df_summary.to_csv("rounds_data.csv", mode='a', header=not file_exists, index=False)
+    st.success("Round saved successfully!")
 
 # Round analysis
 st.markdown("---")
@@ -129,36 +147,36 @@ if round_notes.strip():
     st.markdown("#### 🗒️ Round Notes")
     st.markdown(f"> {round_notes}")
 
-# Hole-by-hole summary
+# Leaderboard
 st.markdown("---")
-st.markdown("<h2 style='color:purple;'>📋 Hole-by-Hole Summary</h2>", unsafe_allow_html=True)
-df_display = df.rename(columns={
-    "Green Pitched": "GIR",
-    "Chip-in": "Chip",
-    "Long Putt": "LongP",
-    "Putts": "Putt",
-    "Birdie Putt Made Dist": "BPMD",
-    "Birdie Putt Missed Dist": "BPMisD",
-    "Off Green Putt": "OffGreen"
-})
-totals = {
-    "Hole": "Total",
-    "Score": df["Score"].sum(),
-    "GIR": df["Green Pitched"].sum(),
-    "Chip": df["Chip-in"].sum(),
-    "LongP": df["Long Putt"].sum(),
-    "Putt": df["Putts"].dropna().sum(),
-    "Notes": "" if enable_notes else None,
-    "BPMD": df["Birdie Putt Made Dist"].dropna().sum(),
-    "BPMisD": df["Birdie Putt Missed Dist"].dropna().sum(),
-    "OffGreen": df["Off Green Putt"].sum()
-}
-df_display = pd.concat([df_display, pd.DataFrame([totals])], ignore_index=True)
-if not enable_notes:
-    df_display = df_display.drop(columns=["Notes"])
-st.table(df_display.set_index("Hole"))
+st.markdown("<h2 style='color:gold;'>🏆 Leaderboard</h2>", unsafe_allow_html=True)
+if os.path.exists("rounds_data.csv"):
+    leaderboard_df = pd.read_csv("rounds_data.csv")
+    leaderboard_summary = leaderboard_df.groupby("Player").agg(
+        Rounds=("Score", "count"),
+        Avg_Score=("Score", "mean"),
+        Total_Birdies=("Birdies", "sum"),
+        Birdie_Percentage=("Birdie %", "mean")
+    ).sort_values(by=["Avg_Score", "Birdie_Percentage"], ascending=[True, False])
+    st.dataframe(leaderboard_summary.style.format({"Avg_Score": "{:.2f}", "Birdie_Percentage": "{:.1f}%"}))
+else:
+    st.info("No rounds saved yet.")
 
-# Charts
+# AI-based feedback
+st.markdown("---")
+st.markdown("<h2 style='color:red;'>🧠 AI-Based Performance Feedback</h2>", unsafe_allow_html=True)
+if avg_birdie_putt_made and avg_birdie_putt_made < 10:
+    st.markdown("- ✅ You're converting birdie putts well from short range. Keep practicing 5–10 ft putts.")
+if avg_birdie_putt_missed and avg_birdie_putt_missed > 10:
+    st.markdown("- ⚠️ You're missing birdie putts from long range. Focus on lag putting from 12–15 ft.")
+if birdie_conversion < 30:
+    st.markdown("- 📉 Birdie conversion on greens hit is low. Consider practicing mid-range putts.")
+if missed_green_recovery > 20:
+    st.markdown("- 🔁 Great job recovering birdies after missed greens!")
+elif missed_green_recovery < 10:
+    st.markdown("- 🛠️ Work on your short game to improve birdie chances after missed greens.")
+
+# Visuals
 st.markdown("---")
 st.markdown("<h2 style='color:orange;'>📈 Visual Summary</h2>", unsafe_allow_html=True)
 sns.set_theme(style="whitegrid")
