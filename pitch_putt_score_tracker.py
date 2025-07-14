@@ -105,6 +105,56 @@ missed_green_birdies = ((df["Score"] == 2) & (~df["Green Pitched"])).sum()
 missed_green_recovery = missed_green_birdies / (18 - greens_pitched) * 100 if (18 - greens_pitched) else 0
 avg_birdie_putt_made = df["Birdie Putt Made Dist"].dropna().mean()
 avg_birdie_putt_missed = df["Birdie Putt Missed Dist"].dropna().mean()
+def generate_summary_image(player_name, total_score, birdies, pars, bogeys, greens_pitched, gir_percentage,
+                           chip_ins, total_putts, average_putts, birdie_conversion, missed_green_recovery,
+                           avg_birdie_putt_made, avg_birdie_putt_missed, round_notes):
+    width, height = 720, 1280
+    image = Image.new("RGB", (width, height), color="white")
+    draw = ImageDraw.Draw(image)
+
+    try:
+        font_title = ImageFont.truetype("arial.ttf", 40)
+        font_subtitle = ImageFont.truetype("arial.ttf", 28)
+        font_text = ImageFont.truetype("arial.ttf", 24)
+    except IOError:
+        font_title = font_subtitle = font_text = ImageFont.load_default()
+
+    y = 40
+    draw.text((40, y), f"⛳ Round Summary – {player_name}", font=font_title, fill="black"); y += 80
+    draw.text((40, y), f"Total Score: {total_score}", font=font_text, fill="black"); y += 40
+    draw.text((40, y), f"Birdies: {birdies}", font=font_text, fill="black"); y += 40
+    draw.text((40, y), f"Pars: {pars}", font=font_text, fill="black"); y += 40
+    draw.text((40, y), f"Bogeys or worse: {bogeys}", font=font_text, fill="black"); y += 40
+    draw.text((40, y), f"Greens Hit (GIR): {greens_pitched} ({gir_percentage:.1f}%)", font=font_text, fill="black"); y += 40
+    draw.text((40, y), f"Chip-ins: {chip_ins}", font=font_text, fill="black"); y += 40
+    draw.text((40, y), f"Total Putts: {int(total_putts)} (Avg: {average_putts:.2f})", font=font_text, fill="black"); y += 40
+    draw.text((40, y), f"Birdie Conversion on GIR: {birdie_conversion:.1f}%", font=font_text, fill="black"); y += 40
+    draw.text((40, y), f"Missed Green Birdie Recovery: {missed_green_recovery:.1f}%", font=font_text, fill="black"); y += 40
+    if not pd.isna(avg_birdie_putt_made):
+        draw.text((40, y), f"Avg Birdie Putt Made Distance: {avg_birdie_putt_made:.1f} ft", font=font_text, fill="black"); y += 40
+    if not pd.isna(avg_birdie_putt_missed):
+        draw.text((40, y), f"Avg Birdie Putt Missed Distance: {avg_birdie_putt_missed:.1f} ft", font=font_text, fill="black"); y += 40
+
+    y += 20
+    draw.text((40, y), "🧠 AI Feedback:", font=font_subtitle, fill="black"); y += 40
+    if avg_birdie_putt_made and avg_birdie_putt_made < 10:
+        draw.text((60, y), "✔️ Converting birdie putts well from short range.", font=font_text, fill="black"); y += 30
+    if avg_birdie_putt_missed and avg_birdie_putt_missed > 10:
+        draw.text((60, y), "⚠️ Missing birdie putts from long range.", font=font_text, fill="black"); y += 30
+    if birdie_conversion < 30:
+        draw.text((60, y), "📉 Low birdie conversion on greens hit.", font=font_text, fill="black"); y += 30
+    if missed_green_recovery > 20:
+        draw.text((60, y), "🔁 Great job recovering birdies after missed greens!", font=font_text, fill="black"); y += 30
+    elif missed_green_recovery < 10:
+        draw.text((60, y), "🛠️ Work on short game after missed greens.", font=font_text, fill="black"); y += 30
+
+    if round_notes.strip():
+        y += 20
+        draw.text((40, y), "📝 Round Notes:", font=font_subtitle, fill="black"); y += 40
+        for line in round_notes.splitlines():
+            draw.text((60, y), f"- {line}", font=font_text, fill="black"); y += 30
+
+    return image
 
 # Save round
 if st.button("💾 Save Round"):
@@ -138,10 +188,6 @@ if not pd.isna(avg_birdie_putt_made):
     st.markdown(f"- 📏 **Avg Birdie Putt Made Distance:** {avg_birdie_putt_made:.1f} ft")
 if not pd.isna(avg_birdie_putt_missed):
     st.markdown(f"- 📏 **Avg Birdie Putt Missed Distance:** {avg_birdie_putt_missed:.1f} ft")
-
-if round_notes.strip():
-    st.markdown("#### 🗒️ Round Notes")
-    st.markdown(f"> {round_notes}")
 if st.button("📸 Download Round Summary as Image"):
     summary_img = generate_summary_image(
         player_name, total_score, birdies, pars, bogeys, greens_pitched, gir_percentage,
