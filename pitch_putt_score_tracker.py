@@ -171,6 +171,13 @@ if st.button("💾 Save Round"):
     df_summary = pd.DataFrame([round_summary])
     df_summary.to_csv("rounds_data.csv", mode='a', header=not file_exists, index=False)
     st.success("Round saved successfully!")
+if st.button("📂 View Saved Rounds"):
+    if os.path.exists("rounds_data.csv"):
+        saved_rounds_df = pd.read_csv("rounds_data.csv")
+        st.markdown("### 🗂️ Saved Rounds")
+        st.dataframe(saved_rounds_df)
+    else:
+        st.info("No rounds have been saved yet.")
 
 # Round analysis
 st.markdown("---")
