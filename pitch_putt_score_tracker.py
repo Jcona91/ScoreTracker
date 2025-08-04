@@ -100,32 +100,55 @@ avg_birdie_putt_missed = df["Birdie Putt Missed Dist"].dropna().mean()
 st.markdown("---")
 st.markdown("## 🔊 Audio-Based Stroke Detection")
 
-uploaded_file = st.file_uploader("Upload an audio file", type=["wav", "mp3"])
+import streamlit as st
+import librosa
+import librosa.display
+import matplotlib.pyplot as plt
+import numpy as np
+import io
+import os
+from moviepy.editor import VideoFileClip
+
+st.title("Pitch and Putt Stroke Detection - Audio Preprocessing")
+
+uploaded_file = st.file_uploader("Upload an audio or video file", type=["wav", "mp3", "mp4"])
+
 if uploaded_file is not None:
+    file_type = uploaded_file.type
     audio_bytes = uploaded_file.read()
-    audio_data, sr = librosa.load(io.BytesIO(audio_bytes), sr=16000, mono=True)
 
-    st.subheader("Original Audio Waveform")
-    fig, ax = plt.subplots()
-    librosa.display.waveshow(audio_data, sr=sr, ax=ax)
-    ax.set_title("Original Waveform")
-    st.pyplot(fig)
+    if file_type == "video/mp4":
+        with open("temp_video.mp4", "wb") as f:
+            f.write(audio_bytes)
+        video = VideoFileClip("temp_video.mp4")
+        video.audio.write_audiofile("extracted_audio.wav")
+        audio_path = "extracted_audio.wav"
+    else:
+        audio_path = io.BytesIO(audio_bytes)
 
-    trimmed_audio, _ = librosa.effects.trim(audio_data)
-    normalized_audio = librosa.util.normalize(trimmed_audio)
+    try:
+        audio_data, sr = librosa.load(audio_path, sr=16000, mono=True)
 
-    st.subheader("Waveform After Preprocessing")
-    fig, ax = plt.subplots()
-    librosa.display.waveshow(normalized_audio, sr=sr, ax=ax)
-    ax.set_title("Trimmed & Normalized Waveform")
-    st.pyplot(fig)
+        st.subheader("Original Audio Waveform")
+        fig, ax = plt.subplots()
+        librosa.display.waveshow(audio_data, sr=sr, ax=ax)
+        st.pyplot(fig)
 
-    mfccs = librosa.feature.mfcc(y=normalized_audio, sr=sr, n_mfcc=13)
-    st.subheader("MFCC Features")
-    fig, ax = plt.subplots()
-    img = librosa.display.specshow(mfccs, x_axis='time', ax=ax)
-    ax.set_title("MFCC")
-    fig.colorbar(img, ax=ax)
-    st.pyplot(fig)
+        trimmed_audio, _ = librosa.effects.trim(audio_data)
+        normalized_audio = librosa.util.normalize(trimmed_audio)
 
-    st.success("Audio preprocessing completed successfully.")
+        st.subheader("Waveform After Preprocessing")
+        fig, ax = plt.subplots()
+        librosa.display.waveshow(normalized_audio, sr=sr, ax=ax)
+        st.pyplot(fig)
+
+        mfccs = librosa.feature.mfcc(y=normalized_audio, sr=sr, n_mfcc=13)
+        st.subheader("MFCC Features")
+        fig, ax = plt.subplots()
+        img = librosa.display.specshow(mfccs, x_axis='time', ax=ax)
+        fig.colorbar(img, ax=ax)
+        st.pyplot(fig)
+
+        st.success("Audio preprocessing completed successfully.")
+    except Exception as e:
+        st.error(f"Error processing audio: {e}")
