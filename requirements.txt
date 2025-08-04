@@ -6,3 +6,6 @@ Pillow
 XlsxWriter
 openpyxl
 librosa
+soundfile
+moviepy
+numpy
